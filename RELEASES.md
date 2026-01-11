@@ -1,5 +1,12 @@
 # Release History
 
+## v1.0.1 - 2026-01-11
+
+### Fixes
+- Update all references from nanobanana to imggen in URLs and documentation
+
+---
+
 ## v1.0.0 - 2024-01-11
 
 ### Features
