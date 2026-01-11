@@ -116,16 +116,12 @@ imggen -p "landscape" --variations 4 --dry-run
 
 ## Versioning and Release
 
-When releasing a new version:
+See `.claude/skills/release.md` for complete release process instructions.
 
-```bash
-# 1. Update version in pyproject.toml (semantic versioning)
-# 2. Update __version__ in src/imggen/version.py
-# 3. Commit: git commit -m "Bump version to X.Y.Z"
-# 4. Create tag: git tag vX.Y.Z
-# 5. Push tag to remote: git push origin vX.Y.Z
-```
-
-Always push tags to remote on release - required for `imggen check-update` and version management.
+Key points:
+- Update `pyproject.toml` and `src/imggen/version.py`
+- Update `RELEASES.md` (new release at top)
+- Create git tag and push to remote
+- Tags required for `imggen check-update` functionality
 
 

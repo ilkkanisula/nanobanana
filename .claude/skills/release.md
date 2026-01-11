@@ -1,39 +1,50 @@
 # Release Process
 
-Release a new version of imggen following semantic versioning.
+## Pre-Release
 
-## Steps
-
-1. **Update Version Files**
-   - Update `pyproject.toml` version field
-   - Update `__version__` in `src/imggen/version.py`
-
-2. **Commit Version Bump**
+1. **Run all tests** (must pass)
    ```bash
-   git commit -m "Bump version to X.Y.Z"
+   uv run pytest tests/ -v
    ```
 
-3. **Create and Push Git Tag**
+## Release Steps
+
+1. **Update version files** (semantic versioning)
    ```bash
+   # Edit pyproject.toml: version = "X.Y.Z"
+   # Edit src/imggen/version.py: __version__ = "X.Y.Z"
+   ```
+
+2. **Update RELEASES.md** (add at TOP)
+   ```markdown
+   ## vX.Y.Z - YYYY-MM-DD
+
+   ### Features
+   - Feature one
+
+   ### Fixes
+   - Bug fix one
+
+   ### Breaking Changes
+   - (if any)
+   ```
+
+3. **Commit and tag**
+   ```bash
+   git commit -m "Bump version to X.Y.Z"
    git tag vX.Y.Z
+   git push origin main
    git push origin vX.Y.Z
    ```
 
 ## Critical: Always push tags to remote
 
-Tags are required for:
-- `imggen check-update` functionality
-- Version management
-- Release tracking
-
-Never release without pushing tags.
+Tags required for `imggen check-update` and version management. Never skip this step.
 
 ## Verification
 
-After release, verify:
 ```bash
-git tag -l          # Local tags
-git push origin main # Latest changes
-imggen --version    # Verify installed version
-imggen check-update # Verify tag detection
+git tag -l
+imggen --version
+imggen check-update
 ```
