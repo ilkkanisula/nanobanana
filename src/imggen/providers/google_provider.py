@@ -11,6 +11,31 @@ from imggen.providers import Provider
 GENERATE_MODEL = "gemini-3-pro-image-preview"
 
 
+def calculate_google_image_cost(
+    prompt_tokens: int,
+    output_tokens: int,
+    batch_mode: bool = False
+) -> float:
+    """Calculate cost from token counts.
+
+    Args:
+        prompt_tokens: Number of input tokens
+        output_tokens: Number of output tokens (image generation)
+        batch_mode: Whether using batch API (50% discount)
+
+    Returns:
+        Cost in USD for this image generation
+    """
+    if batch_mode:
+        input_rate = 1.00 / 1_000_000
+        output_rate = 60.00 / 1_000_000
+    else:
+        input_rate = 2.00 / 1_000_000
+        output_rate = 120.00 / 1_000_000
+
+    return (prompt_tokens * input_rate) + (output_tokens * output_rate)
+
+
 class GoogleProvider(Provider):
     """Google/Gemini image generation provider."""
 
@@ -105,7 +130,33 @@ class GoogleProvider(Provider):
                         with open(image_path, "wb") as f:
                             f.write(image_data)
 
-                        return {"status": "success", "filename": filename}
+                        # Extract metadata from response
+                        model_version = getattr(response, 'model_version', model or GENERATE_MODEL)
+                        response_id = getattr(response, 'response_id', '')
+                        finish_reason = 'UNKNOWN'
+                        prompt_tokens = 0
+                        output_tokens = 0
+
+                        if response.candidates:
+                            finish_reason = response.candidates[0].finish_reason or 'UNKNOWN'
+
+                        if response.usage_metadata:
+                            prompt_tokens = response.usage_metadata.prompt_token_count or 0
+                            output_tokens = response.usage_metadata.candidates_token_count or 0
+
+                        # Calculate cost from token counts
+                        cost = calculate_google_image_cost(prompt_tokens, output_tokens)
+
+                        return {
+                            "status": "success",
+                            "filename": filename,
+                            "model_version": model_version,
+                            "response_id": response_id,
+                            "finish_reason": finish_reason,
+                            "prompt_tokens": prompt_tokens,
+                            "output_tokens": output_tokens,
+                            "cost_usd": cost,
+                        }
 
             return {"status": "failed", "error": "No image data in response"}
 

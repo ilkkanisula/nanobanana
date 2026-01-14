@@ -1,5 +1,7 @@
 """Pricing calculations for multi-provider image generation."""
 
+from typing import Optional
+
 # Google pricing (per image at 1024x1024 base)
 GOOGLE_PRICING = {
     "1K": 0.134,
@@ -20,7 +22,7 @@ DEFAULT_RESOLUTION = "1K"
 DEFAULT_QUALITY = "low"
 
 
-def get_image_cost(provider: str = None, resolution: str = None, quality: str = None) -> float:
+def get_image_cost(provider: Optional[str] = None, resolution: Optional[str] = None, quality: Optional[str] = None) -> float:
     """Get cost per image for a given provider and settings.
 
     Args:
@@ -43,7 +45,7 @@ def get_image_cost(provider: str = None, resolution: str = None, quality: str = 
         return 0.0
 
 
-def calculate_image_cost(provider: str = None, quality: str = None, resolution: str = None) -> float:
+def calculate_image_cost(provider: Optional[str] = None, quality: Optional[str] = None, resolution: Optional[str] = None) -> float:
     """Calculate cost per image for direct generation.
 
     Args:
@@ -57,7 +59,7 @@ def calculate_image_cost(provider: str = None, quality: str = None, resolution: 
     return get_image_cost(provider, resolution, quality)
 
 
-def calculate_total_cost(images: list, default_provider: str = None) -> float:
+def calculate_total_cost(images: list, default_provider: Optional[str] = None) -> float:
     """Calculate total cost for a list of image configs with multi-provider support.
 
     Args:

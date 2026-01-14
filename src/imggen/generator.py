@@ -1,13 +1,75 @@
 """Image generation functionality for imggen."""
 
+import json
 import os
 import sys
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Optional
 
 from imggen.pricing import calculate_image_cost
 from imggen.providers import get_provider, infer_provider_from_model
 from imggen.config import get_api_key_for_provider
+
+
+def save_metadata_file(
+    output_dir: str,
+    filename: str,
+    original_prompt: str,
+    provider: str,
+    model: str,
+    revised_prompt: Optional[str] = None,
+    created: Optional[str] = None,
+    quality: Optional[str] = None,
+    size: Optional[str] = None,
+    cost_usd: Optional[float] = None,
+    **kwargs,
+) -> None:
+    """Save metadata JSON file alongside image.
+
+    Args:
+        output_dir: Directory where image is saved
+        filename: Image filename (with .png extension)
+        original_prompt: Original prompt text
+        provider: Provider name (openai or google)
+        model: Model name used
+        revised_prompt: Optional revised prompt (OpenAI)
+        created: Optional ISO 8601 timestamp (OpenAI)
+        quality: Optional quality tier (OpenAI)
+        size: Optional image dimensions (OpenAI)
+        cost_usd: Optional cost in USD
+        **kwargs: Additional provider-specific fields
+    """
+    # Remove .png extension and add .json
+    base_name = filename.rsplit(".", 1)[0]
+    json_filename = f"{base_name}.json"
+    json_path = os.path.join(output_dir, json_filename)
+
+    # Build metadata dict
+    metadata = {
+        "original_prompt": original_prompt,
+        "provider": provider,
+        "model": model,
+    }
+
+    # Add optional fields in consistent order
+    if revised_prompt is not None:
+        metadata["revised_prompt"] = revised_prompt
+    if created is not None:
+        metadata["created"] = created
+    if quality is not None:
+        metadata["quality"] = quality
+    if size is not None:
+        metadata["size"] = size
+    if cost_usd is not None:
+        metadata["cost_usd"] = cost_usd
+
+    # Add provider-specific fields (Google: model_version, response_id, finish_reason, etc.)
+    metadata.update(kwargs)
+
+    # Write JSON file
+    with open(json_path, "w") as f:
+        json.dump(metadata, f, indent=2)
 
 
 def check_file_collisions(output_dir: str, variations: int) -> tuple[bool, list[str]]:
@@ -57,12 +119,12 @@ def generate_single_image(
     prompt: str,
     output_dir: str,
     filename: str,
-    aspect_ratio: str = None,
-    resolution: str = None,
-    quality: str = None,
-    reference_images: list[str] = None,
-    model: str = None,
-    input_fidelity: str = None,
+    aspect_ratio: Optional[str] = None,
+    resolution: Optional[str] = None,
+    quality: Optional[str] = None,
+    reference_images: Optional[list[str]] = None,
+    model: Optional[str] = None,
+    input_fidelity: Optional[str] = None,
 ) -> dict:
     """Generate a single image and save it.
 
@@ -107,11 +169,11 @@ def generate_from_prompt(
     variations: int,
     provider_name: str,
     api_key: str,
-    aspect_ratio: str = None,
-    quality: str = None,
-    resolution: str = None,
-    model: str = None,
-    input_fidelity: str = None,
+    aspect_ratio: Optional[str] = None,
+    quality: Optional[str] = None,
+    resolution: Optional[str] = None,
+    model: Optional[str] = None,
+    input_fidelity: Optional[str] = None,
     dry_run: bool = False,
 ) -> None:
     """Generate images from prompt and save to disk.
@@ -228,6 +290,26 @@ def generate_from_prompt(
                 if result["status"] == "success":
                     print(f"  [{i}/{variations}] Generating {filename}... ✓")
                     successful += 1
+
+                    # Save metadata file for successful generation
+                    save_metadata_file(
+                        output_dir=output_dir,
+                        filename=filename,
+                        original_prompt=prompt,
+                        provider=provider.name,
+                        model=provider.get_generate_model(),
+                        revised_prompt=result.get("revised_prompt"),
+                        created=result.get("created"),
+                        quality=result.get("quality"),
+                        size=result.get("size"),
+                        cost_usd=result.get("cost_usd"),
+                        # Pass any additional provider-specific fields
+                        model_version=result.get("model_version"),
+                        response_id=result.get("response_id"),
+                        finish_reason=result.get("finish_reason"),
+                        prompt_tokens=result.get("prompt_tokens"),
+                        output_tokens=result.get("output_tokens"),
+                    )
                 else:
                     print(f"  [{i}/{variations}] Generating {filename}... ✗")
                     failed += 1

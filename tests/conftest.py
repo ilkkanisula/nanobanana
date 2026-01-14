@@ -178,3 +178,65 @@ def mock_openai_provider(sample_image_data):
     })
 
     return provider
+
+
+# Provider response fixtures
+@pytest.fixture
+def openai_mock_response():
+    """Create a mock OpenAI image generation response."""
+    mock_response = MagicMock()
+    mock_response.data = [
+        MagicMock(
+            b64_json="base64encodeddata",
+            revised_prompt="An intricately detailed landscape",
+            quality="high",
+            size="1024x1024",
+        )
+    ]
+    mock_response.created = 1705080600
+    return mock_response
+
+
+@pytest.fixture
+def google_mock_response():
+    """Create a mock Google image generation response."""
+    mock_response = MagicMock()
+    mock_response.model_version = "gemini-3-pro-image-preview-001"
+    mock_response.response_id = "abc123xyz789"
+    mock_response.candidates = [MagicMock(finish_reason="STOP")]
+    mock_response.usage_metadata = MagicMock(
+        prompt_token_count=125,
+        candidates_token_count=1120,
+    )
+
+    mock_part = MagicMock()
+    mock_part.inline_data = MagicMock()
+    mock_part.inline_data.data = b"fake image data"
+    mock_response.parts = [mock_part]
+
+    return mock_response
+
+
+@pytest.fixture
+def google_response_factory():
+    """Factory fixture for creating Google responses with custom metadata."""
+    def _make_response(prompt_tokens=100, output_tokens=1000, finish_reason="STOP", include_image=True):
+        mock_response = MagicMock()
+        mock_response.model_version = "gemini-3-pro-image-preview-001"
+        mock_response.response_id = "test-id"
+        mock_response.candidates = [MagicMock(finish_reason=finish_reason)]
+        mock_response.usage_metadata = MagicMock(
+            prompt_token_count=prompt_tokens,
+            candidates_token_count=output_tokens,
+        )
+
+        if include_image:
+            mock_part = MagicMock()
+            mock_part.inline_data = MagicMock()
+            mock_part.inline_data.data = b"fake image data"
+            mock_response.parts = [mock_part]
+        else:
+            mock_response.parts = []
+
+        return mock_response
+    return _make_response

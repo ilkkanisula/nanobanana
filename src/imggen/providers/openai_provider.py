@@ -1,6 +1,7 @@
 """OpenAI provider for image generation."""
 
 import base64
+import datetime
 import os
 import time
 from openai import OpenAI, APIError, RateLimitError
@@ -9,6 +10,30 @@ from imggen.providers import Provider
 
 
 GENERATE_MODEL = "gpt-image-1.5"
+
+
+def calculate_openai_image_cost(quality: str, size: str) -> float:
+    """Calculate cost from image quality and size.
+
+    Args:
+        quality: Image quality (low, medium, high)
+        size: Image size string (1024x1024, 1024x1536, 1536x1024)
+
+    Returns:
+        Cost in USD for this image generation
+    """
+    pricing = {
+        ("low", "1024x1024"): 0.009,
+        ("medium", "1024x1024"): 0.034,
+        ("high", "1024x1024"): 0.133,
+        ("low", "1024x1536"): 0.013,
+        ("low", "1536x1024"): 0.013,
+        ("medium", "1024x1536"): 0.050,
+        ("medium", "1536x1024"): 0.050,
+        ("high", "1024x1536"): 0.200,
+        ("high", "1536x1024"): 0.200,
+    }
+    return pricing.get((quality, size), 0.0)
 
 
 class OpenAIProvider(Provider):
@@ -133,7 +158,27 @@ class OpenAIProvider(Provider):
                     with open(image_path, "wb") as f:
                         f.write(image_data)
 
-                    return {"status": "success", "filename": filename}
+                    # Extract metadata from response
+                    # Note: images.edit() returns null for revised_prompt; use fallback
+                    revised_prompt = getattr(response.data[0], 'revised_prompt', None) or full_prompt
+                    quality_value = getattr(response.data[0], 'quality', None) or openai_quality
+                    size_value = getattr(response.data[0], 'size', None) or image_size
+                    created_iso = datetime.datetime.fromtimestamp(
+                        response.created, tz=datetime.timezone.utc
+                    ).isoformat()
+
+                    # Calculate cost from quality and size
+                    cost = calculate_openai_image_cost(quality_value, size_value)
+
+                    return {
+                        "status": "success",
+                        "filename": filename,
+                        "revised_prompt": revised_prompt,
+                        "created": created_iso,
+                        "quality": quality_value,
+                        "size": size_value,
+                        "cost_usd": cost,
+                    }
 
                 return {"status": "failed", "error": "No image data in response"}
 
