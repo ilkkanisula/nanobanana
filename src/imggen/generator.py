@@ -52,8 +52,8 @@ def save_metadata_file(
         "model": model,
     }
 
-    # Add optional fields in consistent order
-    if revised_prompt is not None:
+    # Add optional fields in consistent order (skip if None or if revised_prompt equals original_prompt)
+    if revised_prompt is not None and revised_prompt != original_prompt:
         metadata["revised_prompt"] = revised_prompt
     if created is not None:
         metadata["created"] = created
@@ -64,8 +64,10 @@ def save_metadata_file(
     if cost_usd is not None:
         metadata["cost_usd"] = cost_usd
 
-    # Add provider-specific fields (Google: model_version, response_id, finish_reason, etc.)
-    metadata.update(kwargs)
+    # Add provider-specific fields (only if not None)
+    for key, value in kwargs.items():
+        if value is not None:
+            metadata[key] = value
 
     # Write JSON file
     with open(json_path, "w") as f:

@@ -585,3 +585,83 @@ class TestMetadataFileStorage:
             with open(json_path) as f:
                 metadata = json.load(f)
                 assert metadata["cost_usd"] == 0.133 * i
+
+    def test_metadata_revised_prompt_omitted_when_identical_to_original(self, tmp_path):
+        """Test that revised_prompt is omitted when identical to original_prompt."""
+        from imggen.generator import save_metadata_file
+
+        original = "a serene landscape at sunset"
+        save_metadata_file(
+            output_dir=str(tmp_path),
+            filename="imggen_001.png",
+            original_prompt=original,
+            provider="openai",
+            model="gpt-image-1.5",
+            revised_prompt=original,  # Identical to original
+        )
+
+        json_path = tmp_path / "imggen_001.json"
+        with open(json_path) as f:
+            metadata = json.load(f)
+
+        # revised_prompt should not be present since it's identical to original
+        assert "revised_prompt" not in metadata
+        assert metadata["original_prompt"] == original
+
+    def test_metadata_null_provider_fields_filtered_out(self, tmp_path):
+        """Test that null provider-specific fields are not included in JSON."""
+        from imggen.generator import save_metadata_file
+
+        save_metadata_file(
+            output_dir=str(tmp_path),
+            filename="imggen_001.png",
+            original_prompt="test prompt",
+            provider="openai",
+            model="gpt-image-1.5",
+            # Pass None values for Google provider fields
+            model_version=None,
+            response_id=None,
+            finish_reason=None,
+            prompt_tokens=None,
+            output_tokens=None,
+        )
+
+        json_path = tmp_path / "imggen_001.json"
+        with open(json_path) as f:
+            metadata = json.load(f)
+
+        # None values should not appear in the JSON
+        assert "model_version" not in metadata
+        assert "response_id" not in metadata
+        assert "finish_reason" not in metadata
+        assert "prompt_tokens" not in metadata
+        assert "output_tokens" not in metadata
+
+    def test_metadata_only_non_null_provider_fields_included(self, tmp_path):
+        """Test that only non-null provider-specific fields are included."""
+        from imggen.generator import save_metadata_file
+
+        save_metadata_file(
+            output_dir=str(tmp_path),
+            filename="imggen_001.png",
+            original_prompt="test prompt",
+            provider="google",
+            model="gemini-3-pro-image-preview",
+            # Mix of None and non-None provider fields
+            model_version="gemini-3-pro-image-preview-001",  # Include this
+            response_id=None,  # Exclude this
+            finish_reason="STOP",  # Include this
+            prompt_tokens=None,  # Exclude this
+            output_tokens=1120,  # Include this
+        )
+
+        json_path = tmp_path / "imggen_001.json"
+        with open(json_path) as f:
+            metadata = json.load(f)
+
+        # Only non-null fields should be present
+        assert metadata["model_version"] == "gemini-3-pro-image-preview-001"
+        assert "response_id" not in metadata
+        assert metadata["finish_reason"] == "STOP"
+        assert "prompt_tokens" not in metadata
+        assert metadata["output_tokens"] == 1120
