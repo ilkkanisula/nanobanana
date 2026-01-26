@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 
 # Repository details
 REPO_URL = "https://github.com/ilkkanisula/imggen"

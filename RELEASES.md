@@ -1,5 +1,15 @@
 # Release History
 
+## v1.1.0 - 2026-01-26
+
+### Features
+- Custom output filename support: specify `--output sunset.png` instead of just directories
+- Single image: `--output photo.png` creates `photo.png`
+- Multiple variations: `--output photo.png -n 4` creates `photo_1.png` through `photo_4.png`
+- Supports `.png`, `.jpg`, `.jpeg` extensions for filename detection
+
+---
+
 ## v1.0.2 - 2026-01-15
 
 ### Fixes

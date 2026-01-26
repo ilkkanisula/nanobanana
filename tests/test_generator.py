@@ -3,6 +3,133 @@ import json
 from unittest.mock import MagicMock
 
 
+class TestOutputPathParsing:
+    """Tests for parse_output_path() function."""
+
+    def test_directory_with_trailing_slash(self):
+        """Test directory path with trailing slash."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("./images/")
+        assert output_dir == "./images"
+        assert basename is None
+
+    def test_directory_without_extension(self):
+        """Test directory path without extension."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("./images")
+        assert output_dir == "./images"
+        assert basename is None
+
+    def test_filename_png_in_current_dir(self):
+        """Test .png filename in current directory."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("sunset.png")
+        assert output_dir == "."
+        assert basename == "sunset"
+
+    def test_filename_jpg_in_current_dir(self):
+        """Test .jpg filename in current directory."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("photo.jpg")
+        assert output_dir == "."
+        assert basename == "photo"
+
+    def test_filename_jpeg_in_current_dir(self):
+        """Test .jpeg filename in current directory."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("image.jpeg")
+        assert output_dir == "."
+        assert basename == "image"
+
+    def test_filename_in_subdirectory(self):
+        """Test filename with directory path."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("./images/sunset.png")
+        assert output_dir == "./images"
+        assert basename == "sunset"
+
+    def test_filename_in_nested_directory(self):
+        """Test filename in deeply nested directory."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("./project/output/renders/final.png")
+        assert output_dir == "./project/output/renders"
+        assert basename == "final"
+
+    def test_absolute_path_directory(self):
+        """Test absolute directory path."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("/tmp/images")
+        assert output_dir == "/tmp/images"
+        assert basename is None
+
+    def test_absolute_path_filename(self):
+        """Test absolute path with filename."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path("/tmp/images/output.png")
+        assert output_dir == "/tmp/images"
+        assert basename == "output"
+
+    def test_dot_current_dir(self):
+        """Test current directory with dot."""
+        from imggen.generator import parse_output_path
+
+        output_dir, basename = parse_output_path(".")
+        assert output_dir == "."
+        assert basename is None
+
+
+class TestFilenameGeneration:
+    """Tests for generate_filename() function."""
+
+    def test_default_single_image(self):
+        """Test default naming for single image."""
+        from imggen.generator import generate_filename
+
+        filename = generate_filename(None, 1, 1)
+        assert filename == "imggen_001.png"
+
+    def test_default_multiple_images(self):
+        """Test default naming for multiple images."""
+        from imggen.generator import generate_filename
+
+        assert generate_filename(None, 1, 4) == "imggen_001.png"
+        assert generate_filename(None, 2, 4) == "imggen_002.png"
+        assert generate_filename(None, 3, 4) == "imggen_003.png"
+        assert generate_filename(None, 4, 4) == "imggen_004.png"
+
+    def test_custom_basename_single_image(self):
+        """Test custom basename for single image."""
+        from imggen.generator import generate_filename
+
+        filename = generate_filename("sunset", 1, 1)
+        assert filename == "sunset.png"
+
+    def test_custom_basename_multiple_images(self):
+        """Test custom basename for multiple images."""
+        from imggen.generator import generate_filename
+
+        assert generate_filename("sunset", 1, 4) == "sunset_1.png"
+        assert generate_filename("sunset", 2, 4) == "sunset_2.png"
+        assert generate_filename("sunset", 3, 4) == "sunset_3.png"
+        assert generate_filename("sunset", 4, 4) == "sunset_4.png"
+
+    def test_custom_basename_two_images(self):
+        """Test custom basename for two images."""
+        from imggen.generator import generate_filename
+
+        assert generate_filename("photo", 1, 2) == "photo_1.png"
+        assert generate_filename("photo", 2, 2) == "photo_2.png"
+
+
 class TestFileCollisionDetection:
     """Tests for file collision detection."""
 
@@ -50,6 +177,48 @@ class TestFileCollisionDetection:
         assert "imggen_001.png" in message
         assert "imggen_002.png" in message
         assert "No API calls were made" in message
+
+    def test_check_file_collisions_custom_basename_single(self, tmp_path):
+        """Test collision detection with custom basename for single image."""
+        from imggen.generator import check_file_collisions
+
+        (tmp_path / "sunset.png").touch()
+
+        has_collision, collisions = check_file_collisions(str(tmp_path), 1, basename="sunset")
+        assert has_collision is True
+        assert "sunset.png" in collisions
+
+    def test_check_file_collisions_custom_basename_no_collision(self, tmp_path):
+        """Test no collision with custom basename."""
+        from imggen.generator import check_file_collisions
+
+        has_collision, collisions = check_file_collisions(str(tmp_path), 1, basename="sunset")
+        assert has_collision is False
+        assert collisions == []
+
+    def test_check_file_collisions_custom_basename_multiple(self, tmp_path):
+        """Test collision detection with custom basename for multiple images."""
+        from imggen.generator import check_file_collisions
+
+        (tmp_path / "sunset_2.png").touch()
+        (tmp_path / "sunset_3.png").touch()
+
+        has_collision, collisions = check_file_collisions(str(tmp_path), 4, basename="sunset")
+        assert has_collision is True
+        assert "sunset_2.png" in collisions
+        assert "sunset_3.png" in collisions
+        assert "sunset_1.png" not in collisions
+        assert "sunset_4.png" not in collisions
+
+    def test_check_file_collisions_default_when_basename_none(self, tmp_path):
+        """Test that default naming is used when basename is None."""
+        from imggen.generator import check_file_collisions
+
+        (tmp_path / "imggen_001.png").touch()
+
+        has_collision, collisions = check_file_collisions(str(tmp_path), 1, basename=None)
+        assert has_collision is True
+        assert "imggen_001.png" in collisions
 
 
 class TestModelParameter:

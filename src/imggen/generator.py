@@ -11,6 +11,53 @@ from imggen.pricing import calculate_image_cost
 from imggen.providers import get_provider, infer_provider_from_model
 from imggen.config import get_api_key_for_provider
 
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
+
+
+def parse_output_path(output: str) -> tuple[str, Optional[str]]:
+    """Parse output path into directory and optional basename.
+
+    Args:
+        output: Output path (directory or filename)
+
+    Returns:
+        (output_dir, basename) where basename is None for directories
+    """
+    output = output.rstrip(os.sep)
+
+    # Check if path ends with image extension
+    lower = output.lower()
+    for ext in IMAGE_EXTENSIONS:
+        if lower.endswith(ext):
+            # Extract directory and basename
+            dirname = os.path.dirname(output)
+            filename = os.path.basename(output)
+            basename = filename[:-(len(ext))]  # Remove extension
+            return dirname if dirname else ".", basename
+
+    # No extension - treat as directory
+    return output, None
+
+
+def generate_filename(basename: Optional[str], index: int, total: int) -> str:
+    """Generate output filename.
+
+    Args:
+        basename: Custom basename or None for default naming
+        index: Image index (1-based)
+        total: Total number of images
+
+    Returns:
+        Filename with .png extension
+    """
+    if basename is None:
+        return f"imggen_{index:03d}.png"
+
+    if total == 1:
+        return f"{basename}.png"
+
+    return f"{basename}_{index}.png"
+
 
 def save_metadata_file(
     output_dir: str,
@@ -74,19 +121,22 @@ def save_metadata_file(
         json.dump(metadata, f, indent=2)
 
 
-def check_file_collisions(output_dir: str, variations: int) -> tuple[bool, list[str]]:
-    """Check if files imggen_001.png through imggen_{variations}.png exist.
+def check_file_collisions(
+    output_dir: str, variations: int, basename: Optional[str] = None
+) -> tuple[bool, list[str]]:
+    """Check if output files already exist.
 
     Args:
         output_dir: Directory to check
         variations: Number of expected images
+        basename: Custom basename or None for default naming
 
     Returns:
         (has_collision, list_of_existing_files)
     """
     collisions = []
     for i in range(1, variations + 1):
-        filename = f"imggen_{i:03d}.png"
+        filename = generate_filename(basename, i, variations)
         filepath = os.path.join(output_dir, filename)
         if os.path.exists(filepath):
             collisions.append(filename)
@@ -197,11 +247,11 @@ def generate_from_prompt(
     Raises:
         ValueError: If file collisions detected or other errors
     """
-    # Normalize output directory path
-    output_dir = output_dir.rstrip(os.sep)
+    # Parse output path into directory and optional basename
+    output_dir, basename = parse_output_path(output_dir)
 
     # Check file collisions BEFORE any API calls
-    has_collision, collisions = check_file_collisions(output_dir, variations)
+    has_collision, collisions = check_file_collisions(output_dir, variations, basename)
     if has_collision:
         raise ValueError(format_collision_error(collisions, output_dir))
 
@@ -232,7 +282,12 @@ def generate_from_prompt(
     if reference_images:
         print(f"  Reference images: {', '.join(reference_images)}")
     print(f"  Variations: {variations}")
-    print(f"  Output: {output_dir}/imggen_001.png ... {output_dir}/imggen_{variations:03d}.png")
+    first_file = generate_filename(basename, 1, variations)
+    if variations == 1:
+        print(f"  Output: {output_dir}/{first_file}")
+    else:
+        last_file = generate_filename(basename, variations, variations)
+        print(f"  Output: {output_dir}/{first_file} ... {output_dir}/{last_file}")
     print()
     print(f"Estimated cost: ${estimated_cost:.2f}")
 
@@ -256,7 +311,7 @@ def generate_from_prompt(
         # Submit all generation tasks
         futures = {}
         for i in range(1, variations + 1):
-            filename = f"imggen_{i:03d}.png"
+            filename = generate_filename(basename, i, variations)
             future = executor.submit(
                 generate_single_image,
                 provider,

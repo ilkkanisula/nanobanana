@@ -186,7 +186,7 @@ def main():
         print("  -r, --references FILE Path to file containing reference image paths (one per line)")
         print()
         print("Optional arguments:")
-        print("  --output DIR          Output directory (default: current directory)")
+        print("  --output PATH         Output dir or filename (default: current dir)")
         print("  --variations N        Number of variations (1-4, default: 1)")
         print("  --model MODEL         Model name: gpt-image-1.5 or gemini-3-pro-image-preview")
         print("  --quality QUALITY     OpenAI quality: low, medium, high (default: low)")
@@ -205,9 +205,10 @@ def main():
         print()
         print("Examples:")
         print("  imggen -p \"a serene landscape\"")
+        print("  imggen -p \"sunset\" --output landscape.png")
+        print("  imggen -p \"art\" --output art.png -n 4")
         print("  imggen -f prompt.txt --variations 4 --output ./images/")
         print("  imggen -p \"test\" ref1.jpg ref2.jpg --output ./images/")
-        print("  imggen -f prompt.txt -r refs.txt --output ./images/")
         sys.exit(0 if len(sys.argv) > 1 else 1)
 
     # Parse arguments
@@ -237,7 +238,7 @@ def main():
     parser.add_argument(
         "--output", "--out-dir",
         default=".",
-        help="Output directory (default: current directory)"
+        help="Output directory or filename (default: current directory)"
     )
     parser.add_argument(
         "--variations", "-n",
@@ -298,7 +299,9 @@ def main():
         sys.exit(1)
 
     # Create output directory if it doesn't exist
-    os.makedirs(args.output, exist_ok=True)
+    from imggen.generator import parse_output_path
+    output_dir, _ = parse_output_path(args.output)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Generate images
     try:

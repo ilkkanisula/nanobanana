@@ -224,11 +224,39 @@ imggen check-update
 imggen update
 ```
 
+### Custom Output Filenames
+
+Specify custom filenames for generated images instead of just directories.
+
+**Behavior:**
+| Command | Result |
+|---------|--------|
+| `--output ./images/` | `imggen_001.png`, `imggen_002.png` (default naming) |
+| `--output sunset.png` | `sunset.png` (single image) |
+| `--output sunset.png -n 4` | `sunset_1.png`, `sunset_2.png`, `sunset_3.png`, `sunset_4.png` |
+| `--output ./images/sunset.png -n 2` | `./images/sunset_1.png`, `./images/sunset_2.png` |
+
+**Detection logic:**
+- File extension present (`.png`, `.jpg`, `.jpeg`) → filename mode
+- No extension or trailing slash → directory mode (default naming)
+
+**CLI Examples:**
+```bash
+# Custom filename for single image
+imggen -p "mountain sunset" --output sunset.png
+
+# Custom filename with multiple variations
+imggen -p "abstract art" --output art.png --variations 4
+
+# Custom filename in subdirectory
+imggen -p "product photo" --output ./renders/product.png -n 2
+```
+
 ### File Collision Prevention
 
 Prevents accidental overwriting of existing images before API calls are made, saving cost.
 
-Generated files are named `imggen_001.png`, `imggen_002.png`, etc.
+By default, generated files are named `imggen_001.png`, `imggen_002.png`, etc. Custom filenames follow the same collision protection.
 
 **Behavior:**
 - Pre-flight check detects colliding files before generation
